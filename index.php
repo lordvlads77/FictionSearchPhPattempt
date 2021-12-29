@@ -2,10 +2,46 @@
 
 $start = "http://localhost/FictionSearch/Crawler/test.html";
 
+$crawled_already = array();
+
+function get_details($url)
+{
+  $options = array('http'=>array('method'=>"GET", 'headers'=>"User-Agent: FictionCrawly/0.2\n"));
+
+  $context = stream_context_create($options);
+  $doc = new DOMDocument();
+  @$doc->loadHTML(@file_get_contents($url, false, $context));
+
+  $title = $doc->getElementsByTagName("title");
+	$title = $title->item(0)->nodeValue;
+
+  $description = "";
+	$keywords = "";
+	$metas = $doc->getElementsByTagName("meta");
+	for ($i = 0; $i < $metas->length; $i++)
+	{
+		$meta = $metas->item($i);
+
+		if ($meta->getAttribute("name") == strtolower("description"))
+		$description = $meta->getAttribute("content");
+		if ($meta->getAttribute("name") == strtolower("keywords"))
+		$keywords = $meta->getAttribute("content");
+
+	}
+
+		return '{ "Title": "'.$title.'", "Description": "'.str_replace("\n", "", $description).'", "Keywords": "'.$keywords.'"}';
+}
+
 function follow_links($url)
 {
+
+  global $crawled_already;
+
+  $options = array('http'=>array('method'=>"GET", 'headers'=>"User-Agent: FictionCrawly/0.2\n"));
+
+  $context = stream_context_create($options);
   $doc = new DOMDocument();
-  $doc->loadHTML(file_get_contents($url));
+  @$doc->loadHTML(@file_get_contents($url, false, $context));
 
   $linklist = $doc->getElementsByTagName("a");
 
@@ -44,11 +80,16 @@ function follow_links($url)
       $l = parse_url($url)["scheme"]."://".parse_url($url)["host"]."/".$l;
     }
 
+    if (!in_array($l, $crawled_already))
+    {
+      $crawled_already[] =$l;
+      echo get_details($l)."\n";
+      //echo $l."\n";
+    }
 
-
-
-    echo $l."\n";
   }
 }
 
 follow_links($start);
+
+print_r($crawled_already);
